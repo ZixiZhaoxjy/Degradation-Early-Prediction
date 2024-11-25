@@ -78,6 +78,11 @@ Here is the implementation:
         x = self.fc4(x)
         return x
 ```
+In each selected temperature, we split the data into 75% and 25% for training and testing, respectively. We train the chemical process prediction model using the Adam optimizer, with 30 epochs and a learning rate of \(10^{-4}\). The loss function of the chemical process prediction model is defined as:
+
+$L_{\text{loss, ChemicalProcess}} = \frac{\sum_{i=1}^C (F_i - \hat{F}_i)^2}{C} + \lambda_1 \cdot \sum_{i=1}^C |F_i - \hat{F}_i|$
+
+where \(F_i\) is the \(i\)-th label of the defined chemical processes, \(\hat{F}_i\) is the predicted chemical process feature matrix for the \(i\)-th cycle, \(\lambda_1\) is the regularization parameter, set to \(10^{-5}\).
 
 See the Methods section of the paper for more details.
 ## 4.2 Latent space scaling and sampling to generate the data
