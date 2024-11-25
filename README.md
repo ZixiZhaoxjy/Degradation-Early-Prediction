@@ -55,23 +55,22 @@ First, we model multi-dimensional chemical processes using early cycle and guidi
 
 ## 4.1 Chemical process prediction model considering initial manufacturing variability (ChemicalProcessModel)
 The **ChemicalProcessModel** predicts chemical process variations by using input voltage matrix $U$. Below is the mathematical formulation and structure of the model.
-
-Given a feature matrix $X \in \mathbb{R}^{(4 \times T) \times 7}$ (see Supplementary Information for more details on the featurization taxonomy), where $T$ is the number of features, the model learns a composition of $L$ intermediate layers of a neural network:
+Given a feature matrix $\mathbf{F} \in \mathbb{R}^{(C \times m) \times N}$ (see Supplementary Information for more details on the featurization taxonomy), where $N$ is the number of features, the model learns a composition of $L$ intermediate layers of a neural network:
 
 \[
-\hat{X} = f_\theta(X) = f_\theta^{(3)} \circ f_\theta^{(2)} \circ f_\theta^{(1)}(X),
+\hat{\mathbf{F}} = f_\theta(U) = \left(f_\sigma^{(L)} \left(f_\theta^{(L)} \circ \cdots \circ f_\sigma^{(1)} \left(f_\theta^{(1)}\right)\right)\right)(U),
 \]
 
-where $L = 3$ in this work. $\hat{X}$ is the output feature matrix, i.e., $\hat{X} \in \mathbb{R}^{(4 \times T) \times 7}$, $\theta = \{\theta^{(1)}, \theta^{(2)}, \theta^{(3)}\}$ represents the network parameters for each layer, $U \in \mathbb{R}^{(4 \times T) \times d_\text{in}}$ is the broadcasted input voltage matrix, and $f_\theta^{(l)}(X)$ is the neural network predictor for the $l$-th layer.
+where $L = 3$ in this work. $\hat{\mathbf{F}}$ is the output feature matrix, i.e., $\hat{\mathbf{F}} \in \mathbb{R}^{(C \times m) \times N}$, $\theta = \{\theta^{(1)}, \theta^{(2)}, \theta^{(3)}\}$ is the collection of network parameters for each layer, $U \in \mathbb{R}^{(C \times m) \times 10}$ is the broadcasted input voltage matrix, and $f_\theta(U)$ is a neural network predictor.
 
 ### Model Architecture
 
 - All layers are fully connected.
-- The activation function used is Leaky ReLU (leaky rectified linear unit).
+- The activation function used is Leaky ReLU (leaky rectified linear unit), denoted as $f_\sigma$.
 - The number of neurons in the hidden layers are as follows:
-  - $d_\text{hidden}^{(1)} = 32$
-  - $d_\text{hidden}^{(2)} = 64$
-  - $d_\text{hidden}^{(3)} = 32$
+  - $f_\theta^{(1)}$: 32 neurons
+  - $f_\theta^{(2)}$: 64 neurons
+  - $f_\theta^{(3)}$: 32 neurons
 Here is the implementation:
 ```python
   # Embedding layer for conditional input (SOC + SOH)
@@ -79,16 +78,7 @@ Here is the implementation:
     condition_embedding = Dense(embedding_dim, activation='relu')(condition_input)
     condition_embedding_expanded = tf.expand_dims(condition_embedding, 2)
 ```
-The main input matrix $x$, representing battery pulse voltage response features, is also transformed into this 64-dimensional latent space:
-$$H = \text{ReLU} \left( x \cdot W_h^T + b_h \right)$$
-where,  $W_h$, $b_h$ are the main input embedding neural network weighting matrix and bias matrix, respectively. Here is the implementation:
-```python
-  # Main input (21-dimensional features)
-    x = Input(shape=(feature_dim,))
-    # VAE Encoder
-    h = Dense(intermediate_dim, activation='relu')(x)
-    h_expanded = tf.expand_dims(h, 2)
-```
+
 See the Methods section of the paper for more details.
 ## 4.2 Latent space scaling and sampling to generate the data
 After training the VAE model, it is necessary to sample its latent space to generate new data. This section will specifically explain how to perform scaling and sampling in the latent space.
