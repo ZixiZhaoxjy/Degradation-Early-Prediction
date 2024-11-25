@@ -16,7 +16,7 @@ Manufacturing complexities and uncertainties have impeded the transition from ma
 
 # 2. Datasets
 * Prototype ternary nickel manganese cobalt lithium-ion batteries were cycled under controlled temperatureconditions (25, 35, 45, 55℃) under multi-step charging (0.33C to 3C, where 1C is 1.1A) and 1C constant discharge beyond EOL thresholds. We generate a unique battery prototype verification dataset spanning lifetimes of 480 to 1025 cycles (average lifetime of 775 with a standard deviation of 175 under EOL80 definition).
-* Raw and processed datasets have been deposited in TBSI-Sunwoda-Battery-Dataset, which can be accessed at [here](https://github.com/terencetaothucb/TBSI-Sunwoda-Battery-Dataset). 
+* Raw and processed datasets have been deposited in TBSI-Sunwoda-Battery-Dataset, which can be accessed at [TBSI-Sunwoda-Battery-Dataset](https://github.com/terencetaothucb/TBSI-Sunwoda-Battery-Dataset). 
 
 
 # 3. Experiment
@@ -53,12 +53,26 @@ The entire experiment consists of three steps as well as three models:
 * DegradationTrajectoryModel
 First, we model multi-dimensional chemical processes using early cycle and guiding sample data; second, we adapt these predictions to specific temperatures; and third, we use adapted chemical processes to avoid the need for physical measures in later cycles. The extent of early data used is tailored to meet the desired accuracy, assessed by mean absolute percentage error for consistent cross-stage comparisons.
 
-## 4.1 Chemical process prediction model considering initial manufacturing variability-ChemicalProcessModel
-To allow the network to focus on relevant aspects of the voltage response matrix $x$ conditioned by the additional retirement condition information $cond$, we introduced the attention mechanism in both the encoder and decoder of the VAE. Here, we use the encoder as an example to illustrate.
+## 4.1 Chemical process prediction model considering initial manufacturing variability (ChemicalProcessModel)
+The **ChemicalProcessModel** predicts chemical process variations by using input voltage matrix $U$. Below is the mathematical formulation and structure of the model.
 
-The encoder network in the variational autoencoder is designed to process and compress input data into a latent space. It starts by taking the 21-dimensional battery voltage response feature matrix $x$ as main input and retirement condition matrix of the retired batteries $cond=[SOC,SOH]$ as conditional input. The condition input is first transformed into an embedding $C$, belonging to a larger latent space with 64-dimension. The conditional embedding $C$ is formulated as: 
-$$C = \text{ReLU} \left( cond \cdot W_c^T + b_c \right)$$
-where, $W_c$, $b_c$ are the condition embedding neural network weighting matrix and bias matrix, respectively. Here is the implementation:
+Given a feature matrix $X \in \mathbb{R}^{(4 \times T) \times 7}$ (see Supplementary Information for more details on the featurization taxonomy), where $T$ is the number of features, the model learns a composition of $L$ intermediate layers of a neural network:
+
+\[
+\hat{X} = f_\theta(X) = f_\theta^{(3)} \circ f_\theta^{(2)} \circ f_\theta^{(1)}(X),
+\]
+
+where $L = 3$ in this work. $\hat{X}$ is the output feature matrix, i.e., $\hat{X} \in \mathbb{R}^{(4 \times T) \times 7}$, $\theta = \{\theta^{(1)}, \theta^{(2)}, \theta^{(3)}\}$ represents the network parameters for each layer, $U \in \mathbb{R}^{(4 \times T) \times d_\text{in}}$ is the broadcasted input voltage matrix, and $f_\theta^{(l)}(X)$ is the neural network predictor for the $l$-th layer.
+
+### Model Architecture
+
+- All layers are fully connected.
+- The activation function used is Leaky ReLU (leaky rectified linear unit).
+- The number of neurons in the hidden layers are as follows:
+  - $d_\text{hidden}^{(1)} = 32$
+  - $d_\text{hidden}^{(2)} = 64$
+  - $d_\text{hidden}^{(3)} = 32$
+Here is the implementation:
 ```python
   # Embedding layer for conditional input (SOC + SOH)
     condition_input = Input(shape=(condition_dim,))
@@ -75,55 +89,6 @@ where,  $W_h$, $b_h$ are the main input embedding neural network weighting matri
     h = Dense(intermediate_dim, activation='relu')(x)
     h_expanded = tf.expand_dims(h, 2)
 ```
-
-Both $H$ and $C$ are then integrated via a cross-attention mechanism, allowing the network to focus on relevant aspects of the voltage response matrix $x$ conditioned by the additional retirement condition information $cond$:
-$$AttenEncoder = \text{Attention}(H,C,C)$$ 
-Here is the implementation:
-```python
-    # Cross-attention in Encoder
-    attention_to_encode = MultiHeadAttention(num_heads, key_dim=embedding_dim)(
-        query=h_expanded,
-        key=condition_embedding_expanded,
-        value=condition_embedding_expanded
-    )
-    attention_output_squeezed = tf.squeeze(attention_to_encode, 2)
-
-    z_mean = Dense(latent_dim)(attention_output_squeezed)
-    z_log_var = Dense(latent_dim)(attention_output_squeezed)
-    z = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
-    encoder = Model(inputs=[x, condition_input], outputs=[z_mean, z_log_var, z])
-```
-The primary function of the Decoder Network is to transform the sampled latent variable $z$ back into the original dataspace, reconstructing the input data or generating new data attended on the original or unseen retirement conditions. The first step in the decoder is a dense layer that transforms $z$ into an intermediate representation:
-$$H^{'} = \text{ReLU} \left( z \cdot W_d^T + b_d \right)$$
-```python
-    # VAE Decoder
-    z_input = Input(shape=(latent_dim,))
-    decoder_h = Dense(intermediate_dim, activation='relu')
-    decoder_mean = Dense(feature_dim, activation='sigmoid')
-    h_decoded = decoder_h(z_input)
-    h_decoded_expanded = tf.expand_dims(h_decoded, 2)
-```
-$H^{'}$ is then integrated via a cross-attention mechanism, allowing the network to focus on relevant aspects of the voltage response matrix $x$ conditioned by the additional retirement condition information $cond$:
-$$AttenDecoder = \text{Attention}(H^{'},C^{'},C^{'})$$ 
-```python
-    # Cross-attention in Decoder
-    attention_to_decoded = MultiHeadAttention(num_heads, key_dim=embedding_dim)(
-        query=h_decoded_expanded,
-        key=condition_embedding_expanded,
-        value=condition_embedding_expanded
-    )
-    attention_output_decoded_squeezed = tf.squeeze(attention_to_decoded, 2)
-    _x_decoded_mean = decoder_mean(attention_output_decoded_squeezed)
-    decoder = Model(inputs=[z_input, condition_input], outputs=_x_decoded_mean)
-```
-With both the encoder and the decoder, the construction of the VAE model is
-```python
-    # VAE Model
-    _, _, z = encoder([x, condition_input])
-    vae_output = decoder([z, condition_input])
-    vae = Model(inputs=[x, condition_input], outputs=vae_output)
-```
-
 See the Methods section of the paper for more details.
 ## 4.2 Latent space scaling and sampling to generate the data
 After training the VAE model, it is necessary to sample its latent space to generate new data. This section will specifically explain how to perform scaling and sampling in the latent space.
