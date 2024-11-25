@@ -1,5 +1,5 @@
 # Decoupling Microscopic Degradation Patterns for Ultra-early Battery Prototype Verification Using Physics-informed Machine Learning
-Rapid and accurate pretreatment for state of health (SOH) estimation in retired batteries is crucial for recycling sustainability. Data-driven approaches, while innovative in SOH estimation, require exhaustive data collection and are sensitive to retirement conditions. Here we show that the generative machine learning strategy can alleviate such a challenge, validated through a unique dataset of 2700 retired lithium-ion battery samples, covering 3 cathode material types, 3 physical formats, 4 capacity designs, and 4 historical usages. With generated data, a simple regressor realizes an accurate pretreatment, with mean absolute percentage errors below 6%, even under unseen retirement conditions.
+Manufacturing complexities and uncertainties have impeded the transition from material prototypes to commercial batteries, making prototype verification critical to quality assessment. A fundamental challenge involves deciphering intertwined chemical processes to characterize degradation patterns and their quantitative relationship with battery performance. Here we show that physics-informed machine learning can quantify and visualize temporally resolved losses concerning thermodynamics and kinetics using electric signals. The proposed method facilitates a non-destructive degradation pattern characterization, expediting temperature-adaptable predictions of entire lifetime trajectories, rather than end-of-life points. The verification speed is 25 times faster than capacity calibration tests with 95.1% prediction accuracy across temperatures. We attribute the predictability to interpreting statistical insights from material-agnostic featurization, elicited by a multistep charging profile, for degradation pattern decoupling. Sustainable management of defective prototypes before massive production is realized using statistically interpreted degradation information, demonstrating a 19.76 billion USD scrap material recycling market in China by 2060. Our findings offer new possibilities for transforming material prototypes into commercial products by shortening the quality verification time and favoring next-generation battery research and development sustainability.
 
 # 1. Setup
 ## 1.1 Enviroments
@@ -15,50 +15,43 @@ Rapid and accurate pretreatment for state of health (SOH) estimation in retired 
 * pandas=2.2.2
 
 # 2. Datasets
-* We physically tested 270 retired lithium-ion batteries, covering 3 cathode types, 4 historical usages, 3 physical formats, and 4 capacity designs. See more details on [Pulse-Voltage-Response-Generation](https://github.com/terencetaothucb/Pulse-Voltage-Response-Generation).
-## 2.1 Battery Types
-|Cathode Material|Nominal Capacity (Ah)|Physical Format|Historical Usage|Quantity|
-|:--|:--|:--|:--|:--|
-|NMC|2.1|Cylinder|Lab Accelerated Aging|67 (from 12 physical batteries)|
-|LMO|10|Pouch|HEV1|95|
-|NMC|21|Pouch|BEV1|52|
-|LFP|35|Square Aluminum Shell|HEV2|56|
+* Prototype ternary nickel manganese cobalt lithium-ion batteries were cycled under controlled temperatureconditions (25, 35, 45, 55℃) under multi-step charging (0.33C to 3C, where 1C is 1.1A) and 1C constant discharge beyond EOL thresholds. We generate a unique battery prototype verification dataset spanning lifetimes of 480 to 1025 cycles (average lifetime of 775 with a standard deviation of 175 under EOL80 definition). Due to the data confidentiality agreement, we are unable to disclose the dataset publicly. If there is a need for subsequent research, please contact the author to obtain the data.
+
 
 # 3. Experiment
 ## 3.1 Settings
-* Python file "configuration" contains all the hyperparameters. Change these parameters to choose battery type, model size and testing conditions.
+* In the code of each model, there are options to change parameters at the very beginning. For example, in the ChemicalProcessModel.py, the following parameters can be modified to adjust the training process.
 ```python
-hyperparams = {
-    'battery': 'NMC2.1', # NMC2.1，NMC21，LMO，LFP
-    'file_path': 'battery_data/NMC_2.1Ah_W_3000.xlsx',
-    'sampling_multiplier': 1,
-    'feature_dim': 21,  # Dimension of the main input features
-    'condition_dim': 2,  # Dimension of the conditional input (SOC + SOH)
-    'embedding_dim': 64,
-    'intermediate_dim': 64,
-    'latent_dim': 2,
-    'batch_size': 32,
-    'epochs': 50,
-    'num_heads': 1,
-    'train_SOC_values': [0.05, 0.15, 0.25, 0.35, 0.45, 0.50],  # SOC values to use for training
-    'all_SOC_values': [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50],  # All SOC values in the dataset
-    'mode': 3,  # when case > 3, interpolation ends; set mode to 99 for only interpolation, to -1 for only extrapolation
-}
+learning_rates = [3e-4, 1e-4]
+# We train the model using Adam as optimizer, and epochs 30, learning rate 1e-4, mse loss with L1 regularization
+lr_losses = {}
+best_lr = None
+best_loss = float('inf')
+best_model_state = None
+
+train_epochs = 100
+raw_data = pd.read_csv("./raw_data_0920.csv")
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+train_dataset = BattDataset(raw_data, train=True)
+train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
+valid_dataset = BattDataset(raw_data, train=True)
+valid_loader = DataLoader(valid_dataset, batch_size=1, shuffle=False)
+test_dataset = BattDataset(raw_data, train=False)
+test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
+criterion = nn.MSELoss().to(device)
+
 ```
 ## 3.2 Run
-* After changing the experiment settings, __run `main.py` directly.__
-* The experiment contains two parts:
-    * Leverage generative machine learning to generate data under unseen retirement conditions based on already-measured data.
-    * Use the generated data to supervise a random forest regressor which estimates the battery SOH.
+* After changing the experiment settings, __run `***model.py` directly for training and testing.__  
 
 # 4. Experiment Details
 The entire experiment consists of three steps: 
-* Design and train the Conditional-VAE (CVAE) model.
-* Latent space scaling and sampling to generate the data.
-* Perform downstream tasks by using generated data.
+* ChemicalProcessModel: Model multi-dimensional chemical processes by using early cycle and guiding sample data.
+* DomainAdaptModel: Adapt these predictions to specific temperatures.
+* DegradationTrajectoryModel: Use adapted chemical processes to predict the degradation in later cycles.
 
-First, we design a VAE model with attention mechanism. Then, we select the SOC values for training and filter the corresponding data from folder __data__ to train the VAE. After obtaining the VAE model, we perform scaling on the latent space informed by prior knowledge and sample from the scaled latent space to generate data. Finally, we use the generated data to train a random forest model to predict SOH.
-## 4.1 VAE with cross attention for data generation
+## 4.1 Chemical process prediction model considering initial manufacturing variability-ChemicalProcessModel
 To allow the network to focus on relevant aspects of the voltage response matrix $x$ conditioned by the additional retirement condition information $cond$, we introduced the attention mechanism in both the encoder and decoder of the VAE. Here, we use the encoder as an example to illustrate.
 
 The encoder network in the variational autoencoder is designed to process and compress input data into a latent space. It starts by taking the 21-dimensional battery voltage response feature matrix $x$ as main input and retirement condition matrix of the retired batteries $cond=[SOC,SOH]$ as conditional input. The condition input is first transformed into an embedding $C$, belonging to a larger latent space with 64-dimension. The conditional embedding $C$ is formulated as: 
