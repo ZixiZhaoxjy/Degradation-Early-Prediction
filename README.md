@@ -78,73 +78,63 @@ Here is the implementation:
         x = self.fc4(x)
         return x
 ```
-In each selected temperature, we split the data into 75% and 25% for training and testing, respectively. We train the chemical process prediction model using the Adam optimizer, with 30 epochs and a learning rate of \(10^{-4}\). The loss function of the chemical process prediction model is defined as:
-
-$L_{\text {loss_ChemicalProcess }}=\frac{\sum_{i=1}^{C}\left(\boldsymbol{F}_{i}-\hat{\boldsymbol{F}}_{i}\right)^{2}}{C}+\lambda_{1} * \sum_{i=1}^{C}\left|\boldsymbol{F}_{i}-\hat{\boldsymbol{F}}_{i}\right|$
-where $F_i$ is the $i-th$ label of the defined chemical processes, $hat{{F}_i}$ is the predicted chemical process feature matrix for the \(i\)-th cycle, $lambda_1$ is the regularization parameter, set to \(10^{-5}\).
-
-
-See the Methods section of the paper for more details.
-## 4.2 Latent space scaling and sampling to generate the data
-After training the VAE model, it is necessary to sample its latent space to generate new data. This section will specifically explain how to perform scaling and sampling in the latent space.
-### 4.2.1 Latent space scaling informed by prior knowledge
-Certain retirement conditions, e.g., extreme SOH and SOC can be under-represented in the battery recycling pretreatment due to practical constraints. Specifically, the retired batteries exhibit concentrated SOH and SOC, leading to poor estimation performance when confronted with out-of-distribution (OOD) batteries.  This phenomenon results from the fact that retired electric vehicle batteries are collected in batches with similar historical usages and, thus similar SOH conditions. With a stationary rest following, the voltage values of the collected retired batteries are discharged lower than a certain threshold due to the safety concerns of the battery recyclers, resulting in a stationary rest SOC lower than 50%. Even if the explicit battery retirement conditions are still unknown, we can use this approximated prior knowledge to generate enough synthetic data to cover the actual retirement conditions. 
-
-Given two data generation settings, namely, interpolation and extrapolation, we use different latent space scaling strategies. In the interpolation setting, the scaling matrix $T$ is an identity matrix $I$ assuming the encoder network and decoder network can learn the inherited data structures without taking advantage of any prior knowledge. In the extrapolation setting, however, the assumption cannot be guaranteed due to the OOD issue, a general challenge of machine learning models. Here we use the means of training and testing SOC distributions to define the scaling matrix, a prior knowledge of the battery retirement conditions, then the latent space is scaled as:
-$$z_{\text{mean}}^{'} = T_{\text{mean}} \cdot z_{\text{mean}}$$
-$$z_{\text {log-var }}^{'}=T_{\text {log-var}} \cdot z_{\text {log-var}}$$
-where, $T_{\text{mean}}$ and $T_{\text{log-var}}$ are the scaling matrices defined by the broadcasted mean, and variance ratio between the testing and training SOC distributions. We emphasize that the SOH distributions are irrelevant to such a scaling. This is because these identical SOH values could be seen as representing physically distinct batteries, i.e., they do not affect the scaling process. Thus, feeding the model with the same SOH values during training and reconstruction does not present an OOD problem. On the other hand, for the SOC dimension, our goal is to generate data under unseen SOC conditions, where physical tests cannot be exhausted.
-### 4.2.2 Sampling in the scaled latent space 
-The sampling step in the VAE is a bridge between the deterministic output of the encoder neural network and the stochastic nature of the scaled latent space. It allows the model to capture the hidden structure of the input data, specifically the pulse voltage response $x$ and $cond$ to explore similar data points. The sampling procedure can be formulated as:
-$$z = z_{\text{mean}} + e^{\frac{1}{2}z_{\text {log-var }}} \cdot \boldsymbol{\epsilon}$$
-where, $\boldsymbol{\epsilon}$, is a Gaussian noise vector sampled from $\boldsymbol{\epsilon} \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$. The exponential term $e^{\frac{1}{2}z_{\text {log-var }}}$ turns the log variance vector to a positive variance vector. $z$ is the sampled latent variable. 
-
-The implementation of data generation process based on latent space scaling and sampling is as follows.
+In each selected temperature, we split the data into 75% and 25% for training and testing, respectively. We train the chemical process prediction model using the Adam optimizer, with 30 epochs and a learning rate of \(10^{-4}\). The loss function of the chemical process prediction model is implementated as:
 ```python
-def generate_data(vae, train_features, train_condition, test_condition, encoder, decoder, sampling_multiplier, batch_size, epochs, latent_dim):
-    # Normalize feature data (training)
-    feature_scaler = MinMaxScaler().fit(train_features)
-    train_features_normalized = feature_scaler.transform(train_features)
-
-    # Combine training and testing conditional data for scaling
-    combined_conditions = np.vstack([train_condition, test_condition])
-    # Normalize conditional data (training and testing using the same scaler)
-    condition_scaler = MinMaxScaler().fit(combined_conditions)
-    train_condition_normalized = condition_scaler.transform(train_condition)
-    test_condition_normalized = condition_scaler.transform(test_condition)
-    # Fit the VAE model using training data
-    history = vae.fit([train_features_normalized, train_condition_normalized], train_features_normalized,
-                      epochs=epochs, batch_size=batch_size, verbose=0)
-    # Generate new samples based on testing conditions
-    num_samples = len(test_condition_normalized) * sampling_multiplier
-    print("num_samples",num_samples)
-    random_latent_values_new = K.random_normal(shape=(num_samples, latent_dim), seed=0)
-    random_latent_values_train = K.random_normal(shape=(len(train_condition_normalized) * sampling_multiplier, latent_dim), seed=0)
-
-    # Use the testing conditional input for generating data
-    repeated_conditions = np.repeat(test_condition_normalized, sampling_multiplier, axis=0)
-
-    new_features_normalized = decoder.predict([random_latent_values_new, repeated_conditions])
-
-    # Denormalize the generated feature data
-    generated_features = feature_scaler.inverse_transform(new_features_normalized)
-
-    repeated_conditions_train = np.repeat(train_condition_normalized, sampling_multiplier, axis=0)
-
-    train_features_normalized = decoder.predict([random_latent_values_train, repeated_conditions_train])
-
-    # Denormalize the generated feature data
-    train_generated_features = feature_scaler.inverse_transform(train_features_normalized)
-
-    train_generated_features = np.vstack([train_generated_features, generated_features])
-
-    # Denormalize the repeated conditions to return them to their original scale
-    repeated_conditions_denormalized = condition_scaler.inverse_transform(repeated_conditions)
-    # Combine generated features with their corresponding conditions for further analysis
-    generated_data = np.hstack([generated_features, repeated_conditions_denormalized])
-
-    return generated_data, generated_features, repeated_conditions_denormalized, history, train_generated_features
+criterion = nn.MSELoss().to(device)
+def loss_fn(outputs, labels, model, l1_strength):
+        loss = criterion(outputs, labels)
+        l1_regularization = add_l1_regularization(model, l1_strength)
+        loss += l1_regularization
+        return loss
 ```
+See the Methods section of the paper for more details.
+## 4.2 Multi-domain adaptation
+After training the VAE model, it is necessary to sample its latent space to generate new data. This section will specifically explain how to perform scaling and sampling in the latent space.
+### 4.2.1 Physics-informed transferability metric
+It is time-consuming and cost-intensive to enumerate continuous temperature verifications, we therefore formulate a knowledge transfer from existing measured data (source domain) to arbitrary intermediate temperatures (target domain). The transfer is compatible with multi- and uni-source domain adaptation cases for tailored verification purposes. Here we use a multi-source domain adaptation to elucidate the core idea. For instance, we take 25, 55℃ as source domains and 35, 45℃ as target domains. 
+
+We propose a physics-informed transferability metric to quantitatively evaluate the effort in the knowledge transfer. The proposed transferability metric integrates prior physics knowledge inspired by the Arrhenius equation:
+
+$$
+r = A e^{-\frac{E_a}{k_B T}} 
+$$
+
+where: $A$ is a constant, $r$ is the aging rate of the battery, $E_a$ is the activation energy, $k_B$ is the Boltzmann constant, and $T$ is the Kelvin temperature.
+
+The Arrhenius equation provides us with important information that the aging rate of batteries is directly related to the temperature. Therefore, the Arrhenius equation offers valuable insights into translating the aging rate between different temperatures. We observe the domain-invariant representation of the aging rate ratio, consequently, the proposed Arrhenius equation-based transferability metric $AT_{score}$ is defined as:
+
+$$
+AT_{score}  = \frac{r_{target}}{r_{target}} = \frac{e^{-\frac{E_a^s}{k_B T_s}}}{e^{-\frac{E_a^t}{k_B T_t}}} 
+$$
+
+where $E_a^s$ is the activation energy of the source domain, $E_a^t$ is the activation energy of the target domain, $T_s$ and $T_t$ are the Kelvin temperatures of the source domain and the target domain, respectively.
+
+The closer the $AT_{score}$ is to 1, the more similar the source domain and target domain are, so the better the knowledge transfer is expected. Since the dominating aging mechanism is unknown (characterized by $E_a$) as a posterior, we alternatively determine the aging rate by calculating the first derivative concerning the variations on the predicted chemical process curve:
+
+$$
+r = \frac{d\hat{F}}{dC} \tag{7}
+$$
+
+where $\hat{F}$ is the predicted chemical process feature matrix. We linearize the calculation in adjacent cycles by sampling the point pairs on the predicted chemical process:
+
+$$
+r = \frac{\sum_{i=0}^n \left(F_{\text{end}+i} - F_{\text{start}+i}\right)}{n \cdot (\text{end} - \text{start})}
+$$
+
+where $n$ is the number of point pairs, $start$ and $end$ are the cycle indices where we start and end the sampling, respectively, $F_{end+i}$ and $F_{start+i}$ are the feature values for the $(start+i)th$ and $(end+i)th$ cycles, respectively.
+
+This calculation mitigates the noise-induced errors, resulting in a more robust aging rate computation. For domains where the aging mechanism is already known (different domains share the same \( E_a \)), the $AT_{score}$ can be expressed in the following form:
+
+$$
+\text{AT}_{\text{score}}^{source \to target} = e^{\frac{E_a}{k_B} \left( \frac{1}{T_t} - \frac{1}{T_s} \right)} 
+$$
+
+where $\frac{E_a}{k_B}$ is a constant value. This formula ensures that, in cases where the aging mechanism is known, we can calculate transferability between different domains using only the temperatures of the source and target domains. This allows the model for continuous temperature generalization without any target data.
+
+### 4.2.2 Multi-domain adaptation using the physics-informed transferability metric
+
+### 4.2.3 Chain of degradation
+
 ## 4.3 Random forest regressor for SOH estimation
 Since the data has been generated, the next step is to use the generated data to predict the SOH. We use the generated data to train a random forest model to predict SOH，and the random forest for regression can be formulated as:
 $$\overline{y} = \overline{h}(\mathbf{X}) = \frac{1}{K} \sum_{k=1}^{K} h(\mathbf{X}; \vartheta_k, \theta_k)$$
