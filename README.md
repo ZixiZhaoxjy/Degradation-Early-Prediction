@@ -55,28 +55,30 @@ First, we model multi-dimensional chemical processes using early cycle and guidi
 
 ## 4.1 Chemical process prediction model considering initial manufacturing variability (ChemicalProcessModel)
 The **ChemicalProcessModel** predicts chemical process variations by using input voltage matrix $U$. Below is the mathematical formulation and structure of the model.
-Given a feature matrix $\mathbf{F} \in \mathbb{R}^{(C \times m) \times N}$ (see Supplementary Information for more details on the featurization taxonomy), where $N$ is the number of features, the model learns a composition of $L$ intermediate layers of a neural network:
 
-\[
+Given a feature matrix $\mathbf{F} \in \mathbb{R}^{(C \times m) \times N}$ (see paper for more details on the featurization taxonomy), where $N$ is the number of features, the model learns a composition of $L$ intermediate layers of a neural network:
+$$
 \hat{\mathbf{F}} = f_\theta(U) = \left(f_\sigma^{(L)} \left(f_\theta^{(L)} \circ \cdots \circ f_\sigma^{(1)} \left(f_\theta^{(1)}\right)\right)\right)(U),
-\]
+$$
 
 where $L = 3$ in this work. $\hat{\mathbf{F}}$ is the output feature matrix, i.e., $\hat{\mathbf{F}} \in \mathbb{R}^{(C \times m) \times N}$, $\theta = \{\theta^{(1)}, \theta^{(2)}, \theta^{(3)}\}$ is the collection of network parameters for each layer, $U \in \mathbb{R}^{(C \times m) \times 10}$ is the broadcasted input voltage matrix, and $f_\theta(U)$ is a neural network predictor.
 
-### Model Architecture
-
-- All layers are fully connected.
-- The activation function used is Leaky ReLU (leaky rectified linear unit), denoted as $f_\sigma$.
-- The number of neurons in the hidden layers are as follows:
-  - $f_\theta^{(1)}$: 32 neurons
-  - $f_\theta^{(2)}$: 64 neurons
-  - $f_\theta^{(3)}$: 32 neurons
-Here is the implementation:
+All layers are fully connected. The activation function used is Leaky ReLU (leaky rectified linear unit), denoted as $f_\sigma$. Here is the implementation:
 ```python
-  # Embedding layer for conditional input (SOC + SOH)
-    condition_input = Input(shape=(condition_dim,))
-    condition_embedding = Dense(embedding_dim, activation='relu')(condition_input)
-    condition_embedding_expanded = tf.expand_dims(condition_embedding, 2)
+ class ChemicalProcessModel(nn.Module):
+    def __init__(self):
+        super(ChemicalProcessModel, self).__init__()
+        self.fc1 = nn.Linear(10, 32)
+        self.fc2 = nn.Linear(32, 64)
+        self.fc3 = nn.Linear(64, 32)
+        self.fc4 = nn.Linear(32, 42)
+
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = torch.relu(self.fc3(x))
+        x = self.fc4(x)
+        return x
 ```
 
 See the Methods section of the paper for more details.
