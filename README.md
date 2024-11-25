@@ -133,22 +133,125 @@ where $\frac{E_a}{k_B}$ is a constant value. This formula ensures that, in cases
 
 ### 4.2.2 Multi-domain adaptation using the physics-informed transferability metric
 
+The multi-source transfer based on $AT_{\text{score}}$ includes the following three steps. 
+
+* First, we calculate aging rates $r$ for all target and source domains by using early-stage data, i.e., we set $\text{start} = 100$, $\text{end} = 200$, $n = 50$. After calculating aging rates for all features or aging curves, we obtain a target domain aging rate vector $r_{\text{target } 1\times N}$ and a source domain aging rate matrix $r_{\text{source } K\times N}$, where $K$ and $N$ are the number of source domains and the number of features, respectively.
+```python
+def gradient(feature_list,start,end,sample_size):
+    mean_start = 0
+    mean_end = 0
+    for i in range(sample_size):
+      mean_start = mean_start + feature_list[start+i]
+    for i in range(sample_size):
+      mean_end = mean_end + feature_list[end+i]
+    mean_start = mean_start/sample_size
+    mean_end = mean_end/sample_size
+    grad = mean_end - mean_start
+    rang = end-start
+    return np.log(abs(grad/rang))
+
+start45 = early_cycle_start#100
+end45 = early_cycle_end#200
+g25.append(gradient(pre25[i][:],start,end,sample_size))
+g55.append(gradient(pre55[i][:],start,end,sample_size))
+g35.append(gradient(real35[i][:],start,end,sample_size))
+g45.append(gradient(real45[i][:],start45,end45,sample_size))
+```
+
+* Second, we calculate the transferability metric $AT_{\text{score}}$ and weight vector $W_{1\times K} = \{W_i\}$.
+
+```python
+#ATscore calculation
+at25.append(gradient(real45[i][:],start45,end45,sample_size)/gradient(pre25[i][:],start,end,sample_size))
+at55.append(gradient(real45[i][:],start45,end45,sample_size)/gradient(pre55[i][:],start,end,sample_size))
+
+#weight calculation
+w25 = abs(step25-1)+abs(step55-1)
+w25 = abs(step55-1)/w25
+w_at_25.append(w25)
+```
+* Third, we predict the late stage (cycles after 200) aging rate of the target domain ($r_{\text{target}}$) (shown in 4.2.3). Note that $AT_{\text{score}}^{\text{source } i \to \text{target}}$ and $W_i$ are obtained by both target and source domain early-stage data, which are used to measure the transferability from source domain to target domain based on their aging rate similarity. $r_{\text{source } i}$ is obtained from all accessible data in the source domain, consistent with our definition of the early-stage estimate problem.
+
+Using the physics-informed transferability metric, we assign a weight vector $W_{1\times K} = \{W_i\}$ (where $K$ is the number of source domains, $W_i$ is the ensemble weight for the $i$-th source domain) to source domains to quantify the contributions when predicting the chemical process of the target domain. The $W_i$ is defined as:
+
+$$
+W_i = \left( \left| AT_{\text{score}}^{\text{source } i \to \text{target}} - 1 \right| \cdot \left( \sum_{j=1}^K \frac{1}{\left| AT_{\text{score}}^{\text{source } j \to \text{target}} - 1 \right|} \right)^{-1} \right) \tag{10}
+$$
+
+where, $AT_{\text{score}}^{\text{source } i \to \text{target}}$ is the $AT_{\text{score}}$ from the $i$-th source domain to the target domain. This mechanism ensures the source domain with better transferability has a higher weight, effectively quantifying the contribution of each source domain to the prediction of the target domain. From Equation (6) and Equation (10), we can obtain the aging rate of the target domain:
+
+$$
+r_{\text{target}} = \sum_{i=1}^K W_i \cdot AT_{\text{score}}^{\text{source } i \to \text{target}} \cdot r_{\text{source } i} \tag{11}
+$$
+
+
+
+See the Methods section of the paper for more details.
+
+
 ### 4.2.3 Chain of degradation
 
-## 4.3 Random forest regressor for SOH estimation
-Since the data has been generated, the next step is to use the generated data to predict the SOH. We use the generated data to train a random forest model to predict SOH，and the random forest for regression can be formulated as:
-$$\overline{y} = \overline{h}(\mathbf{X}) = \frac{1}{K} \sum_{k=1}^{K} h(\mathbf{X}; \vartheta_k, \theta_k)$$
-where $\overline{y}$ is the predicted SOH value vector. $K$ is the tree number in the random forest. $\vartheta_k$ and $\theta_k$ are the hyperparameters. i.e., the minimum leaf size and the maximum depth of the $k$ th tree in the random forest, respectively. In this study, the hyperparameters are set as equal across different battery retirement cases, i.e., $K=20$ , $\vartheta_k=1$, and $\theta_k=64$, for a fair comparison with the same model capability. 
+### Chain of Degradation
 
-The Implementations are based on the ensemble method of the Sklearn Package (version 1.3.1) in the Python 3.11.5 environment, with a random state at 0.
+Battery chemical process degradation is continuous, which we call the "Chain of Degradation". We have predicted the $r_{\text{target}}$ aging rates of each feature in the target domain, which can be further used to predict the chemical process. Therefore, when using aging rates $r_{\text{target}}$ to calculate each target feature vector $F_{\text{(C×m)×1}}$ in the feature matrix $F_{\text{(C×m)×N}}$, the $i$-th cycle target feature vector $F_{\text{target}}^i$ should be based on $F_{\text{target}}^{i-1}$ and $r^{i-1}$:
+
+$$
+F_{\text{target}}^i = F_{\text{target}}^{i-1} + \sum_{j=i}^K W_j \cdot A_{\text{score}}^{\text{source } j \to \text{target}} \cdot r_{\text{source } j}^{i-1} \tag{12}
+$$
+
+where $F_{\text{target}}^i$ is the feature value of the target domain in the $i$-th cycle, $r_{\text{source } j}^{i-1}$ is the aging rate of source domain $j$ at the $(i-1)$-th cycle.
+
+We concatenate the $N$ feature vectors $F_{\text{(C×m)×1}}$ to get the feature matrix $F_{\text{(C×m)×N}}$. Since our chemical process prediction for each step is based on the result of the previous step, we can track the accumulation of degradation in the aging process and thus it is robust against noise.
+Here is the implementation:
 ```python
-    # Phase 2: Train Model on Generated Data for Selected Testing SOC
-    model_phase2 = RandomForestRegressor(n_estimators=20,max_depth=64,bootstrap=False).fit(X_generated, SOH_generated)
-    y_pred_phase2 = model_phase2.predict(X_test)
-    mape_phase2, std_phase2 = mean_absolute_percentage_error(y_test, y_pred_phase2)
+
+      #################################################################################################
+      # AT method:
+      # Input: at25_to_45, at55_to_45, w_at_25, pre25, pre55 (these are from this round), last45, last55, last25 (these are from the previous round).
+      # Output: pre45, stored in feature_1 (replaces the original model1 output).
+      # Renew: last45 = pre45, last25 = pre25, last55 = pre55
+      #################################################################################################
+
+      if(batch>early_cycle_end):
+        if(batch==early_cycle_end):
+            pred_feature.append(last45)
+        for i in range(42):
+
+          step1 = w_at_25[i]*(pre25[i][0]-last25[i][0])*at25[i]
+          step2 = (1-w_at_25[i])*(pre55[i][0]-last55[i][0])*at55[i]
+          feature_45[i] =  last45[i] + w_at_25[i]*(pre25[i][0]-last25[i][0])*at25[i] + (1-w_at_25[i])*(pre55[i][0]-last55[i][0])*at55[i]
+          last45[i] = feature_1[i]
+          last25[i][0] = pre25[i][0]
+          last55[i][0] = pre55[i][0]
+        pred_feature.append(feature_45)
+
+```
+
+## 4.3 Battery degradation trajectory model
+We have successfully predicted the battery chemical process. It is assumed that the chemical process of the battery deterministically affects the aging process, we therefore use the predicted chemical process to predict the battery degradation curve. The battery degradation trajectory model learns a composition of $L$ intermediate mappings:
+$\hat{\mathbf{D}} = f_\theta(\hat{\mathbf{F}}) = \left(f_\sigma^{(L)} \left(f_\theta^{(L)} \circ \cdots \circ f_\sigma^{(1)} \left(f_\theta^{(1)}\right)\right)\right)(\hat{\mathbf{F}})$
+
+where $L = 3$ in this work. $\hat{\mathbf{D}} $ is predicted battery degradation trajectories, $\theta = \{\theta^{(1)}, \theta^{(2)}, \theta^{(3)}\}$ is the collection of network parameters for each layer, $\hat{\mathbf{F}}$ is the predicted battery chemical process feature matrix, and $f_\theta(\hat{\mathbf{F}})$ is a neural network predictor. All layers are fully connected. The activation function used is Leaky ReLU (leaky rectified linear unit), denoted as $f_\sigma$. 
+
+Here is the implementation:DegradationTrajectory
+```python
+   class DegradationTrajectoryModel(nn.Module):
+    def __init__(self):
+        super(DegradationTrajectoryModel, self).__init__()
+        self.fc1 = nn.Linear(53, 32)
+        self.fc2 = nn.Linear(32, 64)
+        self.fc3 = nn.Linear(64, 32)
+        self.fc4 = nn.Linear(32, 1)
+
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = torch.relu(self.fc3(x))
+        x = self.fc4(x)
+        return x
 ```
 # 5. Access
-Access the raw data and processed features [here](https://zenodo.org/uploads/11671216) under the [MIT licence](https://github.com/terencetaothucb/Pulse-Voltage-Response-Generation/blob/main/LICENSE). Correspondence to [Terence (Shengyu) Tao](terencetaotbsi@gmail.com) and CC Prof. [Xuan Zhang](xuanzhang@sz.tsinghua.edu.cn) and [Guangmin Zhou](guangminzhou@sz.tsinghua.edu.cn) when you use, or have any inquiries.
+Access the raw data and processed features [here]((https://github.com/terencetaothucb/TBSI-Sunwoda-Battery-Dataset)) under the [MIT licence](https://github.com/terencetaothucb/Pulse-Voltage-Response-Generation/blob/main/LICENSE). Correspondence to [Terence (Shengyu) Tao](terencetaotbsi@gmail.com) and CC Prof. [Xuan Zhang](xuanzhang@sz.tsinghua.edu.cn) and [Guangmin Zhou](guangminzhou@sz.tsinghua.edu.cn) when you use, or have any inquiries.
 # 6. Acknowledgements
 [Terence (Shengyu) Tao](mailto:terencetaotbsi@gmail.com) and [Zixi Zhao](zhaozx23@mails.tsinghua.edu.cn)  at Tsinghua Berkeley Shenzhen Institute designed the model and algorithms, developed and tested the experiments, uploaded the model and experimental code, revised the testing experiment plan, and wrote this instruction document based on supplementary materials.  
 
