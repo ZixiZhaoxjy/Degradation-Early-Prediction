@@ -15,7 +15,8 @@ Manufacturing complexities and uncertainties have impeded the transition from ma
 * pandas=2.2.2
 
 # 2. Datasets
-* Prototype ternary nickel manganese cobalt lithium-ion batteries were cycled under controlled temperatureconditions (25, 35, 45, 55℃) under multi-step charging (0.33C to 3C, where 1C is 1.1A) and 1C constant discharge beyond EOL thresholds. We generate a unique battery prototype verification dataset spanning lifetimes of 480 to 1025 cycles (average lifetime of 775 with a standard deviation of 175 under EOL80 definition). Due to the data confidentiality agreement, we are unable to disclose the dataset publicly. If there is a need for subsequent research, please contact the author to obtain the data.
+* Prototype ternary nickel manganese cobalt lithium-ion batteries were cycled under controlled temperatureconditions (25, 35, 45, 55℃) under multi-step charging (0.33C to 3C, where 1C is 1.1A) and 1C constant discharge beyond EOL thresholds. We generate a unique battery prototype verification dataset spanning lifetimes of 480 to 1025 cycles (average lifetime of 775 with a standard deviation of 175 under EOL80 definition).
+* Due to the data confidentiality agreement, we are unable to disclose the dataset publicly. If there is a need for subsequent research, please contact the author to obtain the data.
 
 
 # 3. Experiment
@@ -46,10 +47,11 @@ criterion = nn.MSELoss().to(device)
 * After changing the experiment settings, __run `***model.py` directly for training and testing.__  
 
 # 4. Experiment Details
-The entire experiment consists of three steps: 
-* ChemicalProcessModel: Model multi-dimensional chemical processes by using early cycle and guiding sample data.
-* DomainAdaptModel: Adapt these predictions to specific temperatures.
-* DegradationTrajectoryModel: Use adapted chemical processes to predict the degradation in later cycles.
+The entire experiment consists of three steps as well as three models: 
+* ChemicalProcessModel
+* DomainAdaptModel
+* DegradationTrajectoryModel
+First, we model multi-dimensional chemical processes using early cycle and guiding sample data; second, we adapt these predictions to specific temperatures; and third, we use adapted chemical processes to avoid the need for physical measures in later cycles. The extent of early data used is tailored to meet the desired accuracy, assessed by mean absolute percentage error for consistent cross-stage comparisons.
 
 ## 4.1 Chemical process prediction model considering initial manufacturing variability-ChemicalProcessModel
 To allow the network to focus on relevant aspects of the voltage response matrix $x$ conditioned by the additional retirement condition information $cond$, we introduced the attention mechanism in both the encoder and decoder of the VAE. Here, we use the encoder as an example to illustrate.
