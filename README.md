@@ -16,7 +16,7 @@ Manufacturing complexities and uncertainties have impeded the transition from ma
 
 # 2. Datasets
 * Prototype ternary nickel manganese cobalt lithium-ion batteries were cycled under controlled temperatureconditions (25, 35, 45, 55℃) under multi-step charging (0.33C to 3C, where 1C is 1.1A) and 1C constant discharge beyond EOL thresholds. We generate a unique battery prototype verification dataset spanning lifetimes of 480 to 1025 cycles (average lifetime of 775 with a standard deviation of 175 under EOL80 definition).
-* Due to the data confidentiality agreement, we are unable to disclose the dataset publicly. If there is a need for subsequent research, please contact the author to obtain the data.
+* Raw and processed datasets have been deposited in TBSI-Sunwoda-Battery-Dataset, which can be accessed at [here](https://github.com/terencetaothucb/TBSI-Sunwoda-Battery-Dataset). 
 
 
 # 3. Experiment
