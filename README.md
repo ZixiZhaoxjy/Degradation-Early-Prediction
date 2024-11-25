@@ -80,7 +80,7 @@ Here is the implementation:
         x = self.fc4(x)
         return x
 ```
-In each selected temperature, we split the data into 75% and 25% for training and testing, respectively. We train the chemical process prediction model using the Adam optimizer, with 30 epochs and a learning rate of \(10^{-4}\). The loss function of the chemical process prediction model is implementated as:
+In each selected temperature, we split the data into 75% and 25% for training and testing, respectively. We train the chemical process prediction model using the Adam optimizer, with 30 epochs and a learning rate of $10^{-4}$. The loss function of the chemical process prediction model is implementated as:
 ```python
 criterion = nn.MSELoss().to(device)
 def loss_fn(outputs, labels, model, l1_strength):
@@ -114,7 +114,7 @@ where $E_a^s$ is the activation energy of the source domain, $E_a^t$ is the acti
 The closer the $AT_{score}$ is to 1, the more similar the source domain and target domain are, so the better the knowledge transfer is expected. Since the dominating aging mechanism is unknown (characterized by $E_a$) as a posterior, we alternatively determine the aging rate by calculating the first derivative concerning the variations on the predicted chemical process curve:
 
 $$
-r = \frac{d\hat{F}}{dC} \tag{7}
+r = \frac{d\hat{F}}{dC}
 $$
 
 where $\hat{F}$ is the predicted chemical process feature matrix. We linearize the calculation in adjacent cycles by sampling the point pairs on the predicted chemical process:
@@ -177,13 +177,13 @@ w_at_25.append(w25)
 Using the physics-informed transferability metric, we assign a weight vector $W_{1\times K} = \{W_i\}$ (where $K$ is the number of source domains, $W_i$ is the ensemble weight for the $i$-th source domain) to source domains to quantify the contributions when predicting the chemical process of the target domain. The $W_i$ is defined as:
 
 $$
-W_i = \left( \left| AT_{\text{score}}^{\text{source } i \to \text{target}} - 1 \right| \cdot \left( \sum_{j=1}^K \frac{1}{\left| AT_{\text{score}}^{\text{source } j \to \text{target}} - 1 \right|} \right)^{-1} \right) \tag{10}
+W_i = \left( \left| AT_{\text{score}}^{\text{source } i \to \text{target}} - 1 \right| \cdot \left( \sum_{j=1}^K \frac{1}{\left| AT_{\text{score}}^{\text{source } j \to \text{target}} - 1 \right|} \right)^{-1} \right) 
 $$
 
 where, $AT_{\text{score}}^{\text{source } i \to \text{target}}$ is the $AT_{\text{score}}$ from the $i$-th source domain to the target domain. This mechanism ensures the source domain with better transferability has a higher weight, effectively quantifying the contribution of each source domain to the prediction of the target domain. From Equation (6) and Equation (10), we can obtain the aging rate of the target domain:
 
 $$
-r_{\text{target}} = \sum_{i=1}^K W_i \cdot AT_{\text{score}}^{\text{source } i \to \text{target}} \cdot r_{\text{source } i} \tag{11}
+r_{\text{target}} = \sum_{i=1}^K W_i \cdot AT_{\text{score}}^{\text{source } i \to \text{target}} \cdot r_{\text{source } i}
 $$
 
 
@@ -198,7 +198,7 @@ See the Methods section of the paper for more details.
 Battery chemical process degradation is continuous, which we call the "Chain of Degradation". We have predicted the $r_{\text{target}}$ aging rates of each feature in the target domain, which can be further used to predict the chemical process. Therefore, when using aging rates $r_{\text{target}}$ to calculate each target feature vector $F_{\text{(C×m)×1}}$ in the feature matrix $F_{\text{(C×m)×N}}$, the $i$-th cycle target feature vector $F_{\text{target}}^i$ should be based on $F_{\text{target}}^{i-1}$ and $r^{i-1}$:
 
 $$
-F_{\text{target}}^i = F_{\text{target}}^{i-1} + \sum_{j=i}^K W_j \cdot A_{\text{score}}^{\text{source } j \to \text{target}} \cdot r_{\text{source } j}^{i-1} \tag{12}
+F_{\text{target}}^i = F_{\text{target}}^{i-1} + \sum_{j=i}^K W_j \cdot A_{\text{score}}^{\text{source } j \to \text{target}} \cdot r_{\text{source } j}^{i-1}
 $$
 
 where $F_{\text{target}}^i$ is the feature value of the target domain in the $i$-th cycle, $r_{\text{source } j}^{i-1}$ is the aging rate of source domain $j$ at the $(i-1)$-th cycle.
@@ -236,7 +236,7 @@ $$
 \hat{\mathbf{D}} = f_\theta(\hat{\mathbf{F}}) = \left(f_\sigma^{(L)} \left(f_\theta^{(L)} \circ \cdots \circ f_\sigma^{(1)} \left(f_\theta^{(1)}\right)\right)\right)(\hat{\mathbf{F}})
 $$
 
-where $L = 3$ in this work. $\hat{\mathbf{D}} $ is predicted battery degradation trajectories, $\theta = \{\theta^{(1)}, \theta^{(2)}, \theta^{(3)}\}$ is the collection of network parameters for each layer, $\hat{\mathbf{F}}$ is the predicted battery chemical process feature matrix, and $f_\theta(\hat{\mathbf{F}})$ is a neural network predictor. All layers are fully connected. The activation function used is Leaky ReLU (leaky rectified linear unit), denoted as $f_\sigma$. 
+where $L = 3$ in this work. $\hat{\mathbf{D}}$ is predicted battery degradation trajectories, $\theta = \{\theta^{(1)}, \theta^{(2)}, \theta^{(3)}\}$ is the collection of network parameters for each layer, $\hat{\mathbf{F}}$ is the predicted battery chemical process feature matrix, and $f_\theta(\hat{\mathbf{F}})$ is a neural network predictor. All layers are fully connected. The activation function used is Leaky ReLU (leaky rectified linear unit), denoted as $f_\sigma$. 
 
 Here is the implementation:DegradationTrajectory
 ```python
