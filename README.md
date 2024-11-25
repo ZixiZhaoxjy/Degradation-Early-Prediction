@@ -229,6 +229,7 @@ Here is the implementation:
 
 ## 4.3 Battery degradation trajectory model
 We have successfully predicted the battery chemical process. It is assumed that the chemical process of the battery deterministically affects the aging process, we therefore use the predicted chemical process to predict the battery degradation curve. The battery degradation trajectory model learns a composition of $L$ intermediate mappings:
+
 $\hat{\mathbf{D}} = f_\theta(\hat{\mathbf{F}}) = \left(f_\sigma^{(L)} \left(f_\theta^{(L)} \circ \cdots \circ f_\sigma^{(1)} \left(f_\theta^{(1)}\right)\right)\right)(\hat{\mathbf{F}})$
 
 where $L = 3$ in this work. $\hat{\mathbf{D}} $ is predicted battery degradation trajectories, $\theta = \{\theta^{(1)}, \theta^{(2)}, \theta^{(3)}\}$ is the collection of network parameters for each layer, $\hat{\mathbf{F}}$ is the predicted battery chemical process feature matrix, and $f_\theta(\hat{\mathbf{F}})$ is a neural network predictor. All layers are fully connected. The activation function used is Leaky ReLU (leaky rectified linear unit), denoted as $f_\sigma$. 
