@@ -190,7 +190,6 @@ r_{\text{target}} = \sum_{i=1}^K W_i \cdot AT_{\text{score}}^{\text{source } i \
 $$
 
 
-
 See the Methods section of the paper for more details.
 
 
@@ -229,6 +228,53 @@ Here is the implementation:
         pred_feature.append(feature_45)
 
 ```
+
+### Settings
+* In the code of DomainAdaptModel, there are options to change parameters at the very beginning. The following parameters can be modified to adjust the training process.
+```python
+raw_data = pd.read_csv("./raw_data_0920.csv")
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+model_1_25 = MyNetwork1()
+model_path_1 = "./0921_best_model_1_T25.pt"
+model_1_25.load_state_dict(torch.load(model_path_1, map_location=torch.device('cpu')))
+
+model_1_55 = MyNetwork1()
+model_path_1 = "./0921_best_model_1_T55.pt"
+model_1_55.load_state_dict(torch.load(model_path_1, map_location=torch.device('cpu')))
+
+model_1 = MyNetwork3()
+model_path_1 = "./best_model_1.pt"
+model_1.load_state_dict(torch.load(model_path_1, map_location=torch.device('cpu')))
+
+model_2 = MyNetwork2()
+model_2_old = MyNetwork2()
+
+model_path_2_old = "./best_model_2.pt"
+model_path_2 = "./55_pre_others_best_model_2.pt"
+model_2.load_state_dict(torch.load(model_path_2, map_location=torch.device('cpu')))
+model_2_old.load_state_dict(torch.load(model_path_2_old, map_location=torch.device('cpu')))
+
+battery_dict = {
+    "T25": [1.362,1.336,1.3,1.351,1.318,1.329,1.286,1.442,1.478],
+    "T35": [-0.0816,-0.121,-0.157,-0.092,-0.15,-0.128,-0.244],
+    "T45": [-0.854,-0.941,-0.912,-0.937,-0.988,-0.865,-1.006],
+    "T55": [-1.101,-1.304,-1.242,-1.220,-1.144,-1.224,-1.090],
+}
+
+test_tmp = "T35"
+early_cycle_start = 0 
+early_cycle_end = 200
+sample_size= 20
+test_size = 1295
+if test_tmp == "T45":
+  test_size = 1095
+if test_tmp == "T55":
+  test_size = 895
+
+```
+### Run
+* After changing the experiment settings, __run `DomainAdaptModel.py` directly for training and testing.__
 
 ## 3.4 Battery degradation trajectory model
 We have successfully predicted the battery chemical process. It is assumed that the chemical process of the battery deterministically affects the aging process, we therefore use the predicted chemical process to predict the battery degradation curve. The battery degradation trajectory model learns a composition of $L$ intermediate mappings:
