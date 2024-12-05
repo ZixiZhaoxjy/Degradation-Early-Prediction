@@ -193,8 +193,6 @@ See the Methods section of the paper for more details.
 
 ### 4.2.3 Chain of degradation
 
-### Chain of Degradation
-
 Battery chemical process degradation is continuous, which we call the "Chain of Degradation". We have predicted the $r_{\text{target}}$ aging rates of each feature in the target domain, which can be further used to predict the chemical process. Therefore, when using aging rates $r_{\text{target}}$ to calculate each target feature vector $F_{\text{(C×m)×1}}$ in the feature matrix $F_{\text{(C×m)×N}}$, the $i$-th cycle target feature vector $F_{\text{target}}^i$ should be based on $F_{\text{target}}^{i-1}$ and $r^{i-1}$:
 
 $$
