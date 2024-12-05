@@ -7,9 +7,11 @@ from torch.utils.data import Dataset, DataLoader
 from utils import *
 from BattDataLoader import BattDataset
 
+#load raw data from csv
 raw_data = pd.read_csv("./raw_data_0920.csv")
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+#load chemical process model under different temperatures
 model_1_25 = MyNetwork1()
 model_path_1 = "./0921_best_model_1_T25.pt"
 model_1_25.load_state_dict(torch.load(model_path_1, map_location=torch.device('cpu')))
@@ -18,18 +20,20 @@ model_1_55 = MyNetwork1()
 model_path_1 = "./0921_best_model_1_T55.pt"
 model_1_55.load_state_dict(torch.load(model_path_1, map_location=torch.device('cpu')))
 
+# load the previous chemical process model for compare。
 model_1 = MyNetwork3()
 model_path_1 = "./best_model_1.pt"
 model_1.load_state_dict(torch.load(model_path_1, map_location=torch.device('cpu')))
 
+# load different types of degradation trajectory model 
 model_2 = MyNetwork2()
 model_2_old = MyNetwork2()
-
-model_path_2_old = "./best_model_2.pt"
-model_path_2 = "./55_pre_others_best_model_2.pt"
+model_path_2_old = "./best_model_2_previous.pt"
+model_path_2 = "./best_model_2_now.pt"
 model_2.load_state_dict(torch.load(model_path_2, map_location=torch.device('cpu')))
 model_2_old.load_state_dict(torch.load(model_path_2_old, map_location=torch.device('cpu')))
 
+# the battery_dict is used to filter the specific battery data from the raw data
 battery_dict = {
     "T25": [1.362,1.336,1.3,1.351,1.318,1.329,1.286,1.442,1.478],
     "T35": [-0.0816,-0.121,-0.157,-0.092,-0.15,-0.128,-0.244],
@@ -37,10 +41,15 @@ battery_dict = {
     "T55": [-1.101,-1.304,-1.242,-1.220,-1.144,-1.224,-1.090],
 }
 
+# set the target temperature: T25/T35/T45/T55
 test_tmp = "T35"
+
+# set the early cycle numbers, for now, it means using 0-200 cycles of target domain to train the DomainAdaptModel
 early_cycle_start = 0
 early_cycle_end = 200
 sample_size= 20
+
+# the lifetime of battery under different temperature is not equal, which causes the test size is different
 test_size = 1295
 if test_tmp == "T45":
   test_size = 1095
@@ -56,11 +65,13 @@ sum_mape = 0
 start_time = time.time()
 
 for test_u in battery_dict[test_tmp]:
+  # load the dataset
   train_dataset = BattDataset(raw_data,train=True)
   train_loader = DataLoader(train_dataset, batch_size=1, shuffle = True)
   test_dataset = BattDataset(raw_data,train=False)
   test_loader = DataLoader(test_dataset, batch_size=1, shuffle = False)
 
+  # save the temporary data
   test_label = []
   test_predict = []
   y_filter = []
@@ -73,8 +84,11 @@ for test_u in battery_dict[test_tmp]:
   acc25 = 0
   acc55 = 0
   acc45 = 0
+    
   for batch, (domain, domain11,feature, y_tensor, y_plot) in enumerate(test_loader):
 
+      # voltage map between different temperatures, the map matrix is calculated by the average of voltage.
+      # for example: for T25 and T45, if the average U1 of T25 is 1.324 and the average U1 of T45 is -0.91, then the map number will be 1.324/-0.91 = -1.455
       if test_tmp == "T45":
         domain[0][0] = domain[0][0].float()*-1.45521186
         domain[0][1] = domain[0][1].float()*-1.50569253
