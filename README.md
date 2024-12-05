@@ -15,8 +15,9 @@ Battery research and development (R&D) faces fierce technology path competition 
 * pandas=2.2.2
 
 # 2. Datasets
-* Prototype ternary nickel manganese cobalt lithium-ion batteries were cycled under controlled temperatureconditions (25, 35, 45, 55℃) under multi-step charging (0.33C to 3C, where 1C is 1.1A) and 1C constant discharge beyond EOL thresholds. We generate a unique battery prototype verification dataset spanning lifetimes of 480 to 1025 cycles (average lifetime of 775 with a standard deviation of 175 under EOL80 definition).
-* Raw and processed datasets have been deposited in TBSI-Sunwoda-Battery-Dataset, which can be accessed at [TBSI-Sunwoda-Battery-Dataset](https://github.com/terencetaothucb/TBSI-Sunwoda-Battery-Dataset). 
+
+* Raw and processed datasets have been deposited in TBSI-Sunwoda-Battery-Dataset, which can be accessed at [TBSI-Sunwoda-Battery-Dataset](https://github.com/terencetaothucb/TBSI-Sunwoda-Battery-Dataset).
+* Please refer to __Data generation__ part of the paper for detailed dataset explanation.
 
 
 # 3. Experiment
