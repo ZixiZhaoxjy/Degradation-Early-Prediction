@@ -66,7 +66,7 @@ def loss_fn(outputs, labels, model, l1_strength):
 ```
 See the Methods section of the paper for more details.
 ### Settings
-* In the code of ChemicalProcessModel, there are options to change parameters at the very beginning. The following parameters can be modified to adjust the training process.
+* In the code of Chemical Process Model, there are options to change parameters at the very beginning. The following parameters can be modified to adjust the training process.
 ```python
 learning_rates = [3e-4, 1e-4]
 # We train the model using Adam as optimizer, and epochs 30, learning rate 1e-4, mse loss with L1 regularization
@@ -285,7 +285,7 @@ $$
 
 where $L = 3$ in this work. $\hat{\mathbf{D}}$ is predicted battery degradation trajectories, $\theta = \{\theta^{(1)}, \theta^{(2)}, \theta^{(3)}\}$ is the collection of network parameters for each layer, $\hat{\mathbf{F}}$ is the predicted battery chemical process feature matrix, and $f_\theta(\hat{\mathbf{F}})$ is a neural network predictor. All layers are fully connected. The activation function used is Leaky ReLU (leaky rectified linear unit), denoted as $f_\sigma$. 
 
-Here is the implementation:DegradationTrajectory
+Here is the implementation of DegradationTrajectoryModel:
 ```python
    class DegradationTrajectoryModel(nn.Module):
     def __init__(self):
@@ -302,6 +302,30 @@ Here is the implementation:DegradationTrajectory
         x = self.fc4(x)
         return x
 ```
+### Settings
+* In the code of Degradation Trajectory Modell, there are options to change parameters at the very beginning. The following parameters can be modified to adjust the training process.
+```python
+learning_rates = [1e-3, 2e-3, 3e-3]
+lr_losses = {}
+# The information of the best model
+best_lr = None
+best_loss = float('inf')
+best_model_state = None
+
+train_epochs = 100
+raw_data = pd.read_csv("./raw_data_0920.csv")
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+train_dataset = BattDataset(raw_data,train=True)
+train_loader = DataLoader(train_dataset, batch_size=1, shuffle = True)
+valid_dataset = BattDataset(raw_data,train=True)
+valid_loader = DataLoader(valid_dataset, batch_size=1, shuffle = False)
+test_dataset = BattDataset(raw_data,train=False)
+test_loader = DataLoader(test_dataset, batch_size=1, shuffle = False)
+criterion = nn.MSELoss().to(device)
+```
+### Run
+* After changing the experiment settings, __run `DegradationTrajectoryModel.py` directly for training and testing.__  
 # 4. Access
 Access the raw data and processed features [here]((https://github.com/terencetaothucb/TBSI-Sunwoda-Battery-Dataset)) under the [MIT licence](https://github.com/terencetaothucb/Pulse-Voltage-Response-Generation/blob/main/LICENSE). Correspondence to [Terence (Shengyu) Tao](terencetaotbsi@gmail.com) and CC Prof. [Xuan Zhang](xuanzhang@sz.tsinghua.edu.cn) and [Guangmin Zhou](guangminzhou@sz.tsinghua.edu.cn) when you use, or have any inquiries.
 # 5. Acknowledgements
