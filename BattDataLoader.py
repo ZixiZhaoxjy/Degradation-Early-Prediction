@@ -12,6 +12,9 @@ from scipy.signal import medfilt
 import torch.nn.functional as F
 from sklearn.metrics import mean_squared_error
 
+# Raw and processed datasets have been deposited in TBSI-Sunwoda-Battery-Dataset
+# The dataset can be accessed at https://github.com/terencetaothucb/TBSI-Sunwoda-Battery-Dataset.
+
 class BattDataset(Dataset):
     def __init__(self, data, train):
         self.train = train
