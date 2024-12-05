@@ -14,9 +14,6 @@ from BattDataLoader import BattDataset
 warnings.filterwarnings("ignore")
 
 # a set of learning rate
-#learning_rates = [3e-4,1e-4]
-# learning_rates = [1e-5, 2e-5, 3e-5]
-# learning_rates = [1e-4, 1e-4, 1e-4]
 learning_rates = [1e-3, 2e-3, 3e-3]
 lr_losses = {}
 # The information of the best model
@@ -28,13 +25,17 @@ train_epochs = 100
 raw_data = pd.read_csv("./raw_data_0920.csv")
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-train_dataset = BattDataset(raw_data,train=True)
-train_loader = DataLoader(train_dataset, batch_size=1, shuffle = True)
-valid_dataset = BattDataset(raw_data,train=True)
-valid_loader = DataLoader(valid_dataset, batch_size=1, shuffle = False)
-test_dataset = BattDataset(raw_data,train=False)
-test_loader = DataLoader(test_dataset, batch_size=1, shuffle = False)
-criterion = nn.MSELoss().to(device)
+# Create training dataset and its data loader with batch size 1 and shuffle enabled.
+train_dataset = BattDataset(raw_data, train=True)  
+train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)  
+# Create validation dataset and its data loader with batch size 1 and no shuffle.
+valid_dataset = BattDataset(raw_data, train=True)  
+valid_loader = DataLoader(valid_dataset, batch_size=1, shuffle=False)  
+# Create test dataset and its data loader with batch size 1 and no shuffle.
+test_dataset = BattDataset(raw_data, train=False)  
+test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)  
+# Define MSE loss function and move it to the device.
+criterion = nn.MSELoss().to(device)  
 
 for lr in learning_rates:
 
