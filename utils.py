@@ -36,7 +36,9 @@ class MyNetwork2(nn.Module):
         x = torch.relu(self.fc3(x))
         x = self.fc4(x)
         return x
-        
+
+# MyNetwork3 is chemical process prediction model considering both initial manufacturing variability and temperature.
+# Input U + cycles + T; Output features
 class MyNetwork3(nn.Module):
     def __init__(self):
         super(MyNetwork1, self).__init__()
