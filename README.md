@@ -21,33 +21,7 @@ Battery research and development (R&D) faces fierce technology path competition 
 
 
 # 3. Experiment
-## 3.1 Settings
-* In the code of each model, there are options to change parameters at the very beginning. For example, in the ChemicalProcessModel.py, the following parameters can be modified to adjust the training process.
-```python
-learning_rates = [3e-4, 1e-4]
-# We train the model using Adam as optimizer, and epochs 30, learning rate 1e-4, mse loss with L1 regularization
-lr_losses = {}
-best_lr = None
-best_loss = float('inf')
-best_model_state = None
-
-train_epochs = 100
-raw_data = pd.read_csv("./raw_data_0920.csv")
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-train_dataset = BattDataset(raw_data, train=True)
-train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
-valid_dataset = BattDataset(raw_data, train=True)
-valid_loader = DataLoader(valid_dataset, batch_size=1, shuffle=False)
-test_dataset = BattDataset(raw_data, train=False)
-test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
-criterion = nn.MSELoss().to(device)
-
-```
-## 3.2 Run
-* After changing the experiment settings, __run `***model.py` directly for training and testing.__  
-
-# 4. Experiment Details
+## 3.1 Overview
 The entire experiment consists of three steps as well as three models: 
 * ChemicalProcessModel
 * DomainAdaptModel
@@ -55,7 +29,7 @@ The entire experiment consists of three steps as well as three models:
 
 First, we model multi-dimensional chemical processes using early cycle and guiding sample data; second, we adapt these predictions to specific temperatures; and third, we use adapted chemical processes to avoid the need for physical measures in later cycles. The extent of early data used is tailored to meet the desired accuracy, assessed by mean absolute percentage error for consistent cross-stage comparisons.
 
-## 4.1 Chemical process prediction model considering initial manufacturing variability (ChemicalProcessModel)
+## 3.2 Chemical process prediction model considering initial manufacturing variability (ChemicalProcessModel)
 The **ChemicalProcessModel** predicts chemical process variations by using input voltage matrix $U$. Given a feature matrix $\mathbf{F} \in \mathbb{R}^{(C \times m) \times N}$ (see paper for more details on the featurization taxonomy), where $N$ is the number of features, the model learns a composition of $L$ intermediate layers of a neural network:
 
 $$
@@ -91,9 +65,36 @@ def loss_fn(outputs, labels, model, l1_strength):
         return loss
 ```
 See the Methods section of the paper for more details.
-## 4.2 Multi-domain adaptation
+### Settings
+* In the code of ChemicalProcessModel, there are options to change parameters at the very beginning. The following parameters can be modified to adjust the training process.
+```python
+learning_rates = [3e-4, 1e-4]
+# We train the model using Adam as optimizer, and epochs 30, learning rate 1e-4, mse loss with L1 regularization
+lr_losses = {}
+best_lr = None
+best_loss = float('inf')
+best_model_state = None
+
+train_epochs = 100
+raw_data = pd.read_csv("./raw_data_0920.csv")
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+train_dataset = BattDataset(raw_data, train=True)
+train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
+valid_dataset = BattDataset(raw_data, train=True)
+valid_loader = DataLoader(valid_dataset, batch_size=1, shuffle=False)
+test_dataset = BattDataset(raw_data, train=False)
+test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
+criterion = nn.MSELoss().to(device)
+
+```
+### Run
+* After changing the experiment settings, __run `ChemicalProcessModel.py` directly for training and testing.__  
+
+
+## 3.3 Multi-domain adaptation
 After training the VAE model, it is necessary to sample its latent space to generate new data. This section will specifically explain how to perform scaling and sampling in the latent space.
-### 4.2.1 Physics-informed transferability metric
+### 3.3.1 Physics-informed transferability metric
 It is time-consuming and cost-intensive to enumerate continuous temperature verifications, we therefore formulate a knowledge transfer from existing measured data (source domain) to arbitrary intermediate temperatures (target domain). The transfer is compatible with multi- and uni-source domain adaptation cases for tailored verification purposes. Here we use a multi-source domain adaptation to elucidate the core idea. For instance, we take 25, 55℃ as source domains and 35, 45℃ as target domains. 
 
 We propose a physics-informed transferability metric to quantitatively evaluate the effort in the knowledge transfer. The proposed transferability metric integrates prior physics knowledge inspired by the Arrhenius equation:
@@ -134,7 +135,7 @@ $$
 
 where $\frac{E_a}{k_B}$ is a constant value. This formula ensures that, in cases where the aging mechanism is known, we can calculate transferability between different domains using only the temperatures of the source and target domains. This allows the model for continuous temperature generalization without any target data.
 
-### 4.2.2 Multi-domain adaptation using the physics-informed transferability metric
+### 3.3.2 Multi-domain adaptation using the physics-informed transferability metric
 
 The multi-source transfer based on $AT_{\text{score}}$ includes the following three steps. 
 
@@ -192,7 +193,7 @@ $$
 See the Methods section of the paper for more details.
 
 
-### 4.2.3 Chain of degradation
+### 3.3.3 Chain of degradation
 
 Battery chemical process degradation is continuous, which we call the "Chain of Degradation". We have predicted the $r_{\text{target}}$ aging rates of each feature in the target domain, which can be further used to predict the chemical process. Therefore, when using aging rates $r_{\text{target}}$ to calculate each target feature vector $F_{\text{(C×m)×1}}$ in the feature matrix $F_{\text{(C×m)×N}}$, the $i$-th cycle target feature vector $F_{\text{target}}^i$ should be based on $F_{\text{target}}^{i-1}$ and $r^{i-1}$:
 
@@ -228,7 +229,7 @@ Here is the implementation:
 
 ```
 
-## 4.3 Battery degradation trajectory model
+## 3.4 Battery degradation trajectory model
 We have successfully predicted the battery chemical process. It is assumed that the chemical process of the battery deterministically affects the aging process, we therefore use the predicted chemical process to predict the battery degradation curve. The battery degradation trajectory model learns a composition of $L$ intermediate mappings:
 
 $$
@@ -254,8 +255,8 @@ Here is the implementation:DegradationTrajectory
         x = self.fc4(x)
         return x
 ```
-# 5. Access
+# 4. Access
 Access the raw data and processed features [here]((https://github.com/terencetaothucb/TBSI-Sunwoda-Battery-Dataset)) under the [MIT licence](https://github.com/terencetaothucb/Pulse-Voltage-Response-Generation/blob/main/LICENSE). Correspondence to [Terence (Shengyu) Tao](terencetaotbsi@gmail.com) and CC Prof. [Xuan Zhang](xuanzhang@sz.tsinghua.edu.cn) and [Guangmin Zhou](guangminzhou@sz.tsinghua.edu.cn) when you use, or have any inquiries.
-# 6. Acknowledgements
+# 5. Acknowledgements
 [Terence (Shengyu) Tao](mailto:terencetaotbsi@gmail.com) and [Zixi Zhao](zhaozx23@mails.tsinghua.edu.cn)  at Tsinghua Berkeley Shenzhen Institute designed the model and algorithms, developed and tested the experiments, uploaded the model and experimental code, revised the testing experiment plan, and wrote this instruction document based on supplementary materials.  
 
