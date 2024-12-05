@@ -93,7 +93,8 @@ criterion = nn.MSELoss().to(device)
 
 
 ## 3.3 Multi-domain adaptation
-After training the VAE model, it is necessary to sample its latent space to generate new data. This section will specifically explain how to perform scaling and sampling in the latent space.
+After predicting the chemical process of source domain, it is necessary to transfer it to the target domain. This section will specifically explain how to perform multi-domain adaptation by utilizing our proposed physics-informed transferability metric.
+
 ### 3.3.1 Physics-informed transferability metric
 It is time-consuming and cost-intensive to enumerate continuous temperature verifications, we therefore formulate a knowledge transfer from existing measured data (source domain) to arbitrary intermediate temperatures (target domain). The transfer is compatible with multi- and uni-source domain adaptation cases for tailored verification purposes. Here we use a multi-source domain adaptation to elucidate the core idea. For instance, we take 25, 55℃ as source domains and 35, 45℃ as target domains. 
 
