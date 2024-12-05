@@ -68,25 +68,32 @@ See the Methods section of the paper for more details.
 ### Settings
 * In the code of Chemical Process Model, there are options to change parameters at the very beginning. The following parameters can be modified to adjust the training process.
 ```python
-learning_rates = [3e-4, 1e-4]
-# We train the model using Adam as optimizer, and epochs 30, learning rate 1e-4, mse loss with L1 regularization
-lr_losses = {}
-best_lr = None
-best_loss = float('inf')
-best_model_state = None
 
-train_epochs = 100
-raw_data = pd.read_csv("./raw_data_0920.csv")
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+# List of learning rates to be used for training.
+learning_rates = [3e-4, 1e-4]  
+lr_losses = {}  
+best_lr = None  
+best_loss = float('inf')  
+best_model_state = None  
 
-train_dataset = BattDataset(raw_data, train=True)
-train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
-valid_dataset = BattDataset(raw_data, train=True)
-valid_loader = DataLoader(valid_dataset, batch_size=1, shuffle=False)
-test_dataset = BattDataset(raw_data, train=False)
-test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
-criterion = nn.MSELoss().to(device)
+# Total number of training epochs.
+train_epochs = 100  
+# Read raw data from csv file.
+raw_data = pd.read_csv("./raw_data_0920.csv")  
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')  
 
+# Create training dataset and its data loader with batch size 1 and shuffle enabled.
+train_dataset = BattDataset(raw_data, train=True)  
+train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)  
+# Create validation dataset and its data loader
+valid_dataset = BattDataset(raw_data, train=True)  
+valid_loader = DataLoader(valid_dataset, batch_size=1, shuffle=False)  
+# Create test dataset and its data loader
+test_dataset = BattDataset(raw_data, train=False)  
+test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)  
+
+# Define MSE loss function
+criterion = nn.MSELoss().to(device) 
 ```
 ### Run
 * After changing the experiment settings, __run `ChemicalProcessModel.py` directly for training and testing.__  
@@ -232,9 +239,11 @@ Here is the implementation:
 ### Settings
 * In the code of DomainAdaptModel, there are options to change parameters at the very beginning. The following parameters can be modified to adjust the training process.
 ```python
+#load raw data from csv
 raw_data = pd.read_csv("./raw_data_0920.csv")
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+#load chemical process model under different temperatures
 model_1_25 = MyNetwork1()
 model_path_1 = "./0921_best_model_1_T25.pt"
 model_1_25.load_state_dict(torch.load(model_path_1, map_location=torch.device('cpu')))
@@ -243,35 +252,39 @@ model_1_55 = MyNetwork1()
 model_path_1 = "./0921_best_model_1_T55.pt"
 model_1_55.load_state_dict(torch.load(model_path_1, map_location=torch.device('cpu')))
 
+# load the previous chemical process model for compare。
 model_1 = MyNetwork3()
 model_path_1 = "./best_model_1.pt"
 model_1.load_state_dict(torch.load(model_path_1, map_location=torch.device('cpu')))
 
+# load different types of degradation trajectory model 
 model_2 = MyNetwork2()
 model_2_old = MyNetwork2()
-
-model_path_2_old = "./best_model_2.pt"
-model_path_2 = "./55_pre_others_best_model_2.pt"
+model_path_2_old = "./best_model_2_previous.pt"
+model_path_2 = "./best_model_2_now.pt"
 model_2.load_state_dict(torch.load(model_path_2, map_location=torch.device('cpu')))
 model_2_old.load_state_dict(torch.load(model_path_2_old, map_location=torch.device('cpu')))
 
+# the battery_dict is used to filter the specific battery data from the raw data
 battery_dict = {
     "T25": [1.362,1.336,1.3,1.351,1.318,1.329,1.286,1.442,1.478],
     "T35": [-0.0816,-0.121,-0.157,-0.092,-0.15,-0.128,-0.244],
     "T45": [-0.854,-0.941,-0.912,-0.937,-0.988,-0.865,-1.006],
     "T55": [-1.101,-1.304,-1.242,-1.220,-1.144,-1.224,-1.090],
 }
-
+# set the target temperature: T25/T35/T45/T55
 test_tmp = "T35"
-early_cycle_start = 0 
+# set the early cycle numbers, for now, it means using 0-200 cycles of target domain to train the DomainAdaptModel
+early_cycle_start = 0
 early_cycle_end = 200
 sample_size= 20
+
+# the lifetime of battery under different temperature is not equal, which causes the test size is different
 test_size = 1295
 if test_tmp == "T45":
   test_size = 1095
 if test_tmp == "T55":
   test_size = 895
-
 ```
 ### Run
 * After changing the experiment settings, __run `DomainAdaptModel.py` directly for training and testing.__
@@ -305,6 +318,7 @@ Here is the implementation of DegradationTrajectoryModel:
 ### Settings
 * In the code of Degradation Trajectory Modell, there are options to change parameters at the very beginning. The following parameters can be modified to adjust the training process.
 ```python
+# a set of learning rate
 learning_rates = [1e-3, 2e-3, 3e-3]
 lr_losses = {}
 # The information of the best model
@@ -316,13 +330,17 @@ train_epochs = 100
 raw_data = pd.read_csv("./raw_data_0920.csv")
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-train_dataset = BattDataset(raw_data,train=True)
-train_loader = DataLoader(train_dataset, batch_size=1, shuffle = True)
-valid_dataset = BattDataset(raw_data,train=True)
-valid_loader = DataLoader(valid_dataset, batch_size=1, shuffle = False)
-test_dataset = BattDataset(raw_data,train=False)
-test_loader = DataLoader(test_dataset, batch_size=1, shuffle = False)
-criterion = nn.MSELoss().to(device)
+# Create training dataset and its data loader with batch size 1 and shuffle enabled.
+train_dataset = BattDataset(raw_data, train=True)  
+train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)  
+# Create validation dataset and its data loader with batch size 1 and no shuffle.
+valid_dataset = BattDataset(raw_data, train=True)  
+valid_loader = DataLoader(valid_dataset, batch_size=1, shuffle=False)  
+# Create test dataset and its data loader with batch size 1 and no shuffle.
+test_dataset = BattDataset(raw_data, train=False)  
+test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)  
+# Define MSE loss function and move it to the device.
+criterion = nn.MSELoss().to(device) 
 ```
 ### Run
 * After changing the experiment settings, __run `DegradationTrajectoryModel.py` directly for training and testing.__  
