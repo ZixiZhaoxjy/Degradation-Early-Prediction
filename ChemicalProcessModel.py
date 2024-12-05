@@ -10,24 +10,34 @@ from utils import *
 from BattDataLoader import BattDataset
 # logging.basicConfig(filename='model_2.log', level=logging.INFO)
 
-learning_rates = [3e-4, 1e-4]
-# We train the model using Adam as optimizer, and epochs 30, learning rate 1e-4, mse loss with L1 regularization
-lr_losses = {}
-best_lr = None
-best_loss = float('inf')
-best_model_state = None
+# List of learning rates to be used for training.
+learning_rates = [3e-4, 1e-4]  
+lr_losses = {}  
+best_lr = None  
+best_loss = float('inf')  
+best_model_state = None  
 
-train_epochs = 100
-raw_data = pd.read_csv("./raw_data_0920.csv")
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+# Total number of training epochs.
+train_epochs = 100  
 
-train_dataset = BattDataset(raw_data, train=True)
-train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
-valid_dataset = BattDataset(raw_data, train=True)
-valid_loader = DataLoader(valid_dataset, batch_size=1, shuffle=False)
-test_dataset = BattDataset(raw_data, train=False)
-test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
-criterion = nn.MSELoss().to(device)
+# Read raw data from csv file.
+raw_data = pd.read_csv("./raw_data_0920.csv")  
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')  
+
+# Create training dataset and its data loader with batch size 1 and shuffle enabled.
+train_dataset = BattDataset(raw_data, train=True)  
+train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)  
+
+# Create validation dataset and its data loader
+valid_dataset = BattDataset(raw_data, train=True)  
+valid_loader = DataLoader(valid_dataset, batch_size=1, shuffle=False)  
+
+# Create test dataset and its data loader
+test_dataset = BattDataset(raw_data, train=False)  
+test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)  
+
+# Define MSE loss function
+criterion = nn.MSELoss().to(device)  
 
 for lr in learning_rates:
 
