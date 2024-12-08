@@ -64,7 +64,7 @@ def loss_fn(outputs, labels, model, l1_strength):
         loss += l1_regularization
         return loss
 ```
-See the Methods section of the paper for more details.
+See the __Methods__ section of the paper for more details.
 ### Settings
 * In the code of Chemical Process Model, there are options to change parameters at the very beginning. The following parameters can be modified to adjust the training process.
 ```python
@@ -197,7 +197,7 @@ r_{\text{target}} = \sum_{i=1}^K W_i \cdot AT_{\text{score}}^{\text{source } i \
 $$
 
 
-See the Methods section of the paper for more details.
+See the __Methods__ section of the paper for more details.
 
 
 ### 3.3.3 Chain of degradation
